@@ -66,13 +66,13 @@ const getUsers = async (req, res, next) => {
     const { page, limit, offset } = paginate(req);
     const { role, search } = req.query;
     const params = [];
-    const conditions = ["u.is_active = TRUE"];
+    const conditions = [];
     let idx = 1;
 
     if (role)   { conditions.push(`u.role = $${idx++}`);            params.push(role); }
     if (search) { conditions.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx})`); idx++; params.push(`%${search}%`); }
 
-    const where = `WHERE ${conditions.join(" AND ")}`;
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const countRes = await query(`SELECT COUNT(*) FROM users u ${where}`, params);
     const dataRes  = await query(
