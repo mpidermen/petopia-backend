@@ -7,7 +7,7 @@ const { fetchSettings } = require("./settingsController");
 const getDashboard = async (req, res, next) => {
   try {
     const [users, pets, products, orders, revenue, recentOrders] = await Promise.all([
-      query(`SELECT role, COUNT(*) AS count FROM users GROUP BY role`),
+      query(`SELECT role, COUNT(*) AS count FROM users WHERE is_active = TRUE GROUP BY role`),
       query(`SELECT COUNT(*) AS total, SUM(CASE WHEN stock > 0 THEN 1 ELSE 0 END) AS available FROM pets WHERE is_active = TRUE`),
       query(`SELECT COUNT(*) AS total, SUM(CASE WHEN stock > 0 THEN 1 ELSE 0 END) AS available FROM products WHERE is_active = TRUE`),
       query(`SELECT status, COUNT(*) AS count FROM orders GROUP BY status`),
