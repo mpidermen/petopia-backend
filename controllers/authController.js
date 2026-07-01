@@ -41,23 +41,37 @@ const register = async (req, res, next) => {
     const allowedRoles = ["buyer", "seller"];
     const userRole = allowedRoles.includes(role) ? role : "buyer";
 
+    // Seller baru butuh persetujuan admin dulu sebelum bisa berjualan/login
+    const isActive = userRole !== "seller";
+
     const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
     const hashedPassword = await bcrypt.hash(password, rounds);
 
     const result = await query(
-      `INSERT INTO users (name, email, password, phone, role)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING user_id, name, email, phone, role, avatar_url, created_at`,
-      [name.trim(), email.toLowerCase().trim(), hashedPassword, phone || null, userRole]
+      `INSERT INTO users (name, email, password, phone, role, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING user_id, name, email, phone, role, avatar_url, is_active, created_at`,
+      [name.trim(), email.toLowerCase().trim(), hashedPassword, phone || null, userRole, isActive]
     );
 
     const user = result.rows[0];
-    const token = signToken(user);
 
     // Jika buyer, buat cart otomatis
     if (user.role === "buyer") {
       await query(`INSERT INTO cart (buyer_id) VALUES ($1) ON CONFLICT DO NOTHING`, [user.user_id]);
     }
+
+    // Seller baru: jangan langsung berikan token, harus menunggu admin approve dulu
+    if (user.role === "seller" && !user.is_active) {
+      return res.status(201).json({
+        success: true,
+        pending: true,
+        message: "Registrasi berhasil! Akun seller Anda sedang menunggu persetujuan admin. Anda bisa login setelah disetujui.",
+        data: { user },
+      });
+    }
+
+    const token = signToken(user);
 
     return res.status(201).json({
       success: true,
@@ -91,7 +105,10 @@ const login = async (req, res, next) => {
 
     const user = result.rows[0];
     if (!user.is_active) {
-      return res.status(403).json({ success: false, message: "Akun Anda telah dinonaktifkan." });
+      const msg = user.role === "seller"
+        ? "Akun seller Anda belum disetujui admin. Silakan tunggu verifikasi terlebih dahulu."
+        : "Akun Anda telah dinonaktifkan.";
+      return res.status(403).json({ success: false, message: msg });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
