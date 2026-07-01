@@ -149,17 +149,17 @@ const deleteProduct = async (req, res, next) => {
 const getMyProducts = async (req, res, next) => {
   try {
     const { page, limit, offset } = paginate(req);
-    const countRes = await query(`SELECT COUNT(*) FROM products WHERE seller_id = $1`, [req.user.user_id]);
+    const countRes = await query(`SELECT COUNT(*) FROM products WHERE seller_id = $1 AND is_active = TRUE`, [req.user.user_id]);
     const dataRes  = await query(
       `SELECT p.*, c.name AS category_name, c.icon AS category_icon,
               ROUND(AVG(r.rating),1) AS avg_rating, COUNT(DISTINCT r.review_id) AS review_count
-       FROM products p
-       LEFT JOIN categories c ON c.category_id = p.category_id
-       LEFT JOIN reviews r ON r.product_id = p.product_id
-       WHERE p.seller_id = $1
-       GROUP BY p.product_id, c.name, c.icon
-       ORDER BY p.created_at DESC
-       LIMIT $2 OFFSET $3`,
+      FROM products p
+      LEFT JOIN categories c ON c.category_id = p.category_id
+      LEFT JOIN reviews r ON r.product_id = p.product_id
+      WHERE p.seller_id = $1 AND p.is_active = TRUE
+      GROUP BY p.product_id, c.name, c.icon
+      ORDER BY p.created_at DESC
+      LIMIT $2 OFFSET $3`,
       [req.user.user_id, limit, offset]
     );
     return paginatedResponse(res, { rows: dataRes.rows, total: countRes.rows[0].count, page, limit });

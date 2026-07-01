@@ -66,13 +66,13 @@ const getUsers = async (req, res, next) => {
     const { page, limit, offset } = paginate(req);
     const { role, search } = req.query;
     const params = [];
-    const conditions = [];
+    const conditions = ["u.is_active = TRUE"];
     let idx = 1;
 
     if (role)   { conditions.push(`u.role = $${idx++}`);            params.push(role); }
     if (search) { conditions.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx})`); idx++; params.push(`%${search}%`); }
 
-    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where = `WHERE ${conditions.join(" AND ")}`;
 
     const countRes = await query(`SELECT COUNT(*) FROM users u ${where}`, params);
     const dataRes  = await query(
@@ -186,14 +186,14 @@ const getAllProducts = async (req, res, next) => {
   try {
     const { page, limit, offset } = paginate(req);
     const { search, seller_id } = req.query;
-    const conditions = [];
+    const conditions = ["p.is_active = TRUE"];
     const params = [];
     let idx = 1;
 
     if (search)    { conditions.push(`p.product_name ILIKE $${idx++}`); params.push(`%${search}%`); }
     if (seller_id) { conditions.push(`p.seller_id = $${idx++}`);        params.push(seller_id); }
 
-    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where = `WHERE ${conditions.join(" AND ")}`;
 
     const countRes = await query(`SELECT COUNT(*) FROM products p ${where}`, params);
     const dataRes = await query(
@@ -219,14 +219,14 @@ const getAllPets = async (req, res, next) => {
   try {
     const { page, limit, offset } = paginate(req);
     const { search, seller_id } = req.query;
-    const conditions = [];
+    const conditions = ["p.is_active = TRUE"];
     const params = [];
     let idx = 1;
 
     if (search)    { conditions.push(`p.pet_name ILIKE $${idx++}`); params.push(`%${search}%`); }
     if (seller_id) { conditions.push(`p.seller_id = $${idx++}`);    params.push(seller_id); }
 
-    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where = `WHERE ${conditions.join(" AND ")}`;
 
     const countRes = await query(`SELECT COUNT(*) FROM pets p ${where}`, params);
     const dataRes = await query(

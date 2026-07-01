@@ -172,15 +172,15 @@ const deletePet = async (req, res, next) => {
 const getMyPets = async (req, res, next) => {
   try {
     const { page, limit, offset } = paginate(req);
-    const countRes = await query(`SELECT COUNT(*) FROM pets WHERE seller_id = $1`, [req.user.user_id]);
+    const countRes = await query(`SELECT COUNT(*) FROM pets WHERE seller_id = $1 AND is_active = TRUE`, [req.user.user_id]);
     const dataRes  = await query(
       `SELECT p.*, ROUND(AVG(r.rating),1) AS avg_rating, COUNT(DISTINCT r.review_id) AS review_count
-       FROM pets p
-       LEFT JOIN reviews r ON r.pet_id = p.pet_id
-       WHERE p.seller_id = $1
-       GROUP BY p.pet_id
-       ORDER BY p.created_at DESC
-       LIMIT $2 OFFSET $3`,
+      FROM pets p
+      LEFT JOIN reviews r ON r.pet_id = p.pet_id
+      WHERE p.seller_id = $1 AND p.is_active = TRUE
+      GROUP BY p.pet_id
+      ORDER BY p.created_at DESC
+      LIMIT $2 OFFSET $3`,
       [req.user.user_id, limit, offset]
     );
     return paginatedResponse(res, { rows: dataRes.rows, total: countRes.rows[0].count, page, limit });
