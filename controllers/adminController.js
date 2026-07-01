@@ -64,19 +64,26 @@ const getDashboard = async (req, res, next) => {
 const getUsers = async (req, res, next) => {
   try {
     const { page, limit, offset } = paginate(req);
-    const { role, search } = req.query;
+    const { role, search, is_active } = req.query;
     const params = [];
+    // Default: hanya tampilkan user yang aktif (belum dihapus/dinonaktifkan admin)
     const conditions = [];
     let idx = 1;
 
+    if (is_active !== undefined) {
+      conditions.push(`u.is_active = $${idx++}`);
+      params.push(is_active === "true");
+    } else {
+      conditions.push(`u.is_active = TRUE`);
+    }
     if (role)   { conditions.push(`u.role = $${idx++}`);            params.push(role); }
     if (search) { conditions.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx})`); idx++; params.push(`%${search}%`); }
 
-    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where = `WHERE ${conditions.join(" AND ")}`;
 
     const countRes = await query(`SELECT COUNT(*) FROM users u ${where}`, params);
     const dataRes  = await query(
-      `SELECT user_id, name, email, phone, role, avatar_url, is_active, created_at FROM users u ${where}
+      `SELECT user_id, name, email, phone, role, avatar_url, is_active, is_verified, created_at FROM users u ${where}
        ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx+1}`,
       [...params, limit, offset]
     );
@@ -91,18 +98,19 @@ const getUsers = async (req, res, next) => {
  */
 const updateUser = async (req, res, next) => {
   try {
-    const { role, is_active } = req.body;
+    const { role, is_active, is_verified } = req.body;
     const validRoles = ["buyer", "seller", "admin"];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({ success: false, message: `Role harus salah satu: ${validRoles.join(", ")}` });
     }
     const result = await query(
       `UPDATE users SET
-        role      = COALESCE($1::user_role, role),
-        is_active = COALESCE($2, is_active)
-       WHERE user_id = $3
-       RETURNING user_id, name, email, role, is_active`,
-      [role || null, is_active ?? null, req.params.id]
+        role        = COALESCE($1::user_role, role),
+        is_active   = COALESCE($2, is_active),
+        is_verified = COALESCE($3, is_verified)
+       WHERE user_id = $4
+       RETURNING user_id, name, email, role, is_active, is_verified`,
+      [role || null, is_active ?? null, is_verified ?? null, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ success: false, message: "User tidak ditemukan." });
     return res.json({ success: true, message: "User diperbarui.", data: result.rows[0] });

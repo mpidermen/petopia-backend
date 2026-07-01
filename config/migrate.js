@@ -55,9 +55,13 @@ const createTables = async () => {
         role        user_role NOT NULL DEFAULT 'buyer',
         avatar_url  TEXT,
         is_active   BOOLEAN DEFAULT TRUE,
+        is_verified BOOLEAN DEFAULT TRUE,
         created_at  TIMESTAMPTZ DEFAULT NOW(),
         updated_at  TIMESTAMPTZ DEFAULT NOW()
       );
+    `);
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT TRUE;
     `);
     console.log("✅ Tabel users dibuat");
 

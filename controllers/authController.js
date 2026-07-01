@@ -42,16 +42,16 @@ const register = async (req, res, next) => {
     const userRole = allowedRoles.includes(role) ? role : "buyer";
 
     // Seller baru butuh persetujuan admin dulu sebelum bisa berjualan/login
-    const isActive = userRole !== "seller";
+    const isVerified = userRole !== "seller";
 
     const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
     const hashedPassword = await bcrypt.hash(password, rounds);
 
     const result = await query(
-      `INSERT INTO users (name, email, password, phone, role, is_active)
+      `INSERT INTO users (name, email, password, phone, role, is_verified)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING user_id, name, email, phone, role, avatar_url, is_active, created_at`,
-      [name.trim(), email.toLowerCase().trim(), hashedPassword, phone || null, userRole, isActive]
+       RETURNING user_id, name, email, phone, role, avatar_url, is_active, is_verified, created_at`,
+      [name.trim(), email.toLowerCase().trim(), hashedPassword, phone || null, userRole, isVerified]
     );
 
     const user = result.rows[0];
@@ -62,7 +62,7 @@ const register = async (req, res, next) => {
     }
 
     // Seller baru: jangan langsung berikan token, harus menunggu admin approve dulu
-    if (user.role === "seller" && !user.is_active) {
+    if (user.role === "seller" && !user.is_verified) {
       return res.status(201).json({
         success: true,
         pending: true,
@@ -94,7 +94,7 @@ const login = async (req, res, next) => {
     }
 
     const result = await query(
-      `SELECT user_id, name, email, password, phone, role, avatar_url, address, city, postal_code, is_active
+      `SELECT user_id, name, email, password, phone, role, avatar_url, address, city, postal_code, is_active, is_verified
        FROM users WHERE email = $1`,
       [email.toLowerCase().trim()]
     );
@@ -105,10 +105,10 @@ const login = async (req, res, next) => {
 
     const user = result.rows[0];
     if (!user.is_active) {
-      const msg = user.role === "seller"
-        ? "Akun seller Anda belum disetujui admin. Silakan tunggu verifikasi terlebih dahulu."
-        : "Akun Anda telah dinonaktifkan.";
-      return res.status(403).json({ success: false, message: msg });
+      return res.status(403).json({ success: false, message: "Akun Anda telah dinonaktifkan." });
+    }
+    if (user.role === "seller" && !user.is_verified) {
+      return res.status(403).json({ success: false, message: "Akun seller Anda belum disetujui admin. Silakan tunggu verifikasi terlebih dahulu." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
